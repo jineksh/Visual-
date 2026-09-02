@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Database Index — Visual Guide</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#161b27;--bg3:#1e2535;--bg4:#252d40;
+  --border:#2a3347;--border2:#3a4560;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  --accent:#6366f1;--accent2:#818cf8;--accent-bg:rgba(99,102,241,0.12);
+  --teal:#14b8a6;--teal-bg:rgba(20,184,166,0.12);
+  --amber:#f59e0b;--amber-bg:rgba(245,158,11,0.12);
+  --red:#ef4444;--red-bg:rgba(239,68,68,0.12);
+  --green:#22c55e;--green-bg:rgba(34,197,94,0.12);
+  --purple:#a855f7;--purple-bg:rgba(168,85,247,0.12);
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.6;font-size:15px}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:100;background:rgba(15,17,23,0.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:2px;overflow-x:auto;white-space:nowrap}
+nav a{color:var(--text2);text-decoration:none;font-size:12px;font-weight:500;padding:14px 9px;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;flex-shrink:0}
+nav a:hover{color:var(--text)}
+nav a.active{color:var(--accent2);border-bottom-color:var(--accent2)}
+.nav-logo{font-weight:600;font-size:13px;color:var(--text);margin-right:8px;padding:14px 0;flex-shrink:0}
+
+/* LAYOUT */
+.section{max-width:860px;margin:0 auto;padding:56px 24px;border-bottom:1px solid var(--border)}
+.section:last-child{border-bottom:none}
+h1{font-size:36px;font-weight:600;line-height:1.2;letter-spacing:-0.5px}
+h2{font-size:22px;font-weight:600;margin-bottom:20px;color:var(--text)}
+h3{font-size:15px;font-weight:600;margin-bottom:10px;color:var(--text);margin-top:24px}
+h3:first-child{margin-top:0}
+p{color:var(--text2);margin-bottom:14px;max-width:68ch}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:14px}
+.card-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:600px){.card-row{grid-template-columns:1fr}}
+
+/* CODE */
+pre,code{font-family:var(--mono);font-size:12px}
+pre{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px 18px;overflow-x:auto;color:var(--text);margin:14px 0;line-height:1.7}
+code{background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--accent2)}
+
+/* BADGE */
+.badge{display:inline-block;font-size:11px;font-weight:500;font-family:var(--mono);padding:2px 8px;border-radius:4px}
+.badge-accent{background:var(--accent-bg);color:var(--accent2)}
+.badge-teal{background:var(--teal-bg);color:var(--teal)}
+.badge-amber{background:var(--amber-bg);color:var(--amber)}
+.badge-red{background:var(--red-bg);color:var(--red)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-purple{background:var(--purple-bg);color:var(--purple)}
+
+.divider{border:none;border-top:1px solid var(--border);margin:28px 0}
+
+/* TREE */
+.tree-wrap{overflow-x:auto;padding-bottom:8px}
+.tree{display:flex;flex-direction:column;align-items:center;min-width:580px}
+.tree-level{display:flex;justify-content:center;gap:10px}
+.node{border:1px solid var(--border2);border-radius:8px;background:var(--bg3);font-family:var(--mono);font-size:12px;overflow:hidden;transition:border-color .25s,background .25s,transform .15s}
+.node.root-node{border-color:var(--accent);background:var(--accent-bg)}
+.node.internal{border-color:var(--teal);background:var(--teal-bg)}
+.node.leaf-node{border-color:var(--border2)}
+.node.highlight{border-color:var(--amber);background:var(--amber-bg);transform:scale(1.02)}
+.node.found{border-color:var(--green);background:var(--green-bg);transform:scale(1.02)}
+.node-label{font-size:10px;color:var(--text3);padding:4px 8px 0;font-family:var(--sans)}
+.node-cells{display:flex}
+.node-cell{padding:6px 9px;border-right:1px solid var(--border);color:var(--text);text-align:center;min-width:44px}
+.node-cell:last-child{border-right:none}
+.node-cell.ptr{color:var(--text3);font-size:10px;min-width:30px}
+.node-cell.active{color:var(--amber);font-weight:600}
+.leaf-entry{display:flex;justify-content:space-between;padding:5px 9px;border-top:1px solid var(--border);font-size:12px}
+.leaf-entry .lkey{color:var(--text)}
+.leaf-entry .lptr{color:var(--accent2)}
+.leaf-entry.found-entry{background:var(--green-bg)}
+.leaf-entry.found-entry .lkey{color:var(--green);font-weight:600}
+.leaf-entry.active-entry{background:var(--amber-bg)}
+.leaf-entry.active-entry .lkey{color:var(--amber);font-weight:600}
+
+/* PAGE VISUAL */
+.page-visual{border:1px solid var(--border2);border-radius:8px;overflow:hidden;font-family:var(--mono);font-size:12px;background:var(--bg3)}
+.phbar{background:var(--bg4);padding:5px 10px;border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);font-family:var(--sans);display:flex;justify-content:space-between}
+.psec{padding:8px 10px;border-bottom:1px solid var(--border)}
+.psec:last-child{border-bottom:none}
+.psec-lbl{font-size:10px;color:var(--text3);font-family:var(--sans);margin-bottom:5px}
+.slot-row{display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)}
+.slot-row:last-child{border-bottom:none}
+.sn{color:var(--accent2);min-width:44px}.so{color:var(--teal);min-width:76px}.sl{color:var(--amber);min-width:52px}
+.rbytes{padding:3px 0;border-bottom:1px solid var(--border);color:var(--text2);font-size:11px}
+.rbytes:last-child{border-bottom:none}
+.rlbl{color:var(--text3);font-size:10px}
+
+/* STEPPER */
+.stepper-nav{display:flex;align-items:center;gap:10px;margin-top:14px}
+.sdots{display:flex;gap:6px}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--border2);transition:background .2s}
+.sdot.on{background:var(--accent2)}
+.sdot.done{background:var(--green)}
+.step-info{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-top:12px;font-size:13px;color:var(--text2);line-height:1.6;min-height:60px}
+.step-info strong{color:var(--text);font-weight:500}
+
+/* BUTTONS */
+button{background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:7px 14px;border-radius:6px;font-size:13px;font-family:var(--sans);cursor:pointer;transition:background .15s,border-color .15s}
+button:hover{background:var(--bg4);border-color:var(--accent)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.active-btn{background:var(--accent-bg);border-color:var(--accent);color:var(--accent2)}
+
+/* IO LOG */
+.io-log{margin-top:10px}
+.io-entry{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;animation:fadeUp .3s ease-out both}
+.io-entry:last-child{border-bottom:none}
+@keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.io-num{font-family:var(--mono);color:var(--text3);min-width:18px}
+.io-desc{color:var(--text2);flex:1}
+.io-sz{font-family:var(--mono);font-size:10px;color:var(--text3)}
+
+/* SPLIT */
+.split-scene{min-height:240px;margin-bottom:4px}
+.sn-box{border:1px solid var(--border2);border-radius:8px;background:var(--bg3);font-family:var(--mono);font-size:12px;overflow:hidden;flex:1;min-width:130px}
+.sn-box.full{border-color:var(--red);background:var(--red-bg)}
+.sn-box.new-page{border-color:var(--green);background:var(--green-bg)}
+.sn-box.updated{border-color:var(--teal);background:var(--teal-bg)}
+.sn-hd{font-size:10px;color:var(--text3);padding:5px 9px;border-bottom:1px solid var(--border);font-family:var(--sans)}
+.sn-hd.full{color:var(--red)}.sn-hd.new-page{color:var(--green)}.sn-hd.updated{color:var(--teal)}
+.sn-cells{display:flex}
+.sn-cell{flex:1;text-align:center;padding:7px 4px;border-right:1px solid var(--border);color:var(--text)}
+.sn-cell:last-child{border-right:none}
+.sn-cell.new{color:var(--accent2);font-weight:600}
+.sn-cell.mid{color:var(--amber);font-weight:600}
+.sn-cell.promoted{color:var(--green);font-weight:600}
+.promote-arrow{display:flex;flex-direction:column;align-items:center;margin:5px 0}
+.pa-h{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:7px solid var(--green)}
+.pa-s{width:1px;height:18px;background:var(--green)}
+.promote-lbl{font-size:11px;color:var(--green);font-family:var(--mono);text-align:center;margin-bottom:6px}
+
+/* BUFFER POOL */
+.bp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}
+@media(max-width:500px){.bp-grid{grid-template-columns:repeat(2,1fr)}}
+.bp-slot{border:1px solid var(--border);border-radius:6px;padding:10px 8px;font-size:11px;font-family:var(--mono);background:var(--bg3);text-align:center;transition:all .3s}
+.bp-slot .bp-type{font-size:9px;color:var(--text3);font-family:var(--sans);margin-bottom:3px}
+.bp-slot .bp-name{color:var(--text2)}
+.bp-slot.hot{border-color:var(--accent);background:var(--accent-bg)}
+.bp-slot.hot .bp-name{color:var(--accent2)}
+.bp-slot.empty{border-style:dashed}
+.bp-slot.empty .bp-name{color:var(--text3)}
+.bp-slot.hit{border-color:var(--green);background:var(--green-bg)}
+.bp-slot.hit .bp-name{color:var(--green)}
+
+/* SELECTIVITY */
+.card-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+@media(max-width:560px){.card-grid{grid-template-columns:repeat(2,1fr)}}
+.crd-card{border:1px solid var(--border);border-radius:8px;background:var(--bg3);padding:14px;text-align:center}
+.crd-col{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;font-family:var(--mono)}
+.crd-val{font-size:10px;color:var(--text3);margin-bottom:8px}
+.crd-bt{height:5px;background:var(--bg4);border-radius:3px;margin-bottom:7px}
+.crd-bf{height:100%;border-radius:3px}
+.crd-sel{font-size:11px;font-family:var(--mono)}
+.crd-verdict{font-size:10px;margin-top:5px;padding:2px 6px;border-radius:3px;display:inline-block}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:13px;margin:14px 0}
+th{text-align:left;padding:8px 12px;color:var(--text3);font-weight:500;border-bottom:1px solid var(--border);font-size:11px}
+td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text2)}
+tr:last-child td{border-bottom:none}
+td:first-child{font-family:var(--mono);color:var(--accent2);font-size:12px}
+
+/* CHAIN */
+.chain{display:flex;align-items:center;flex-wrap:wrap;gap:0;margin:14px 0}
+.cbox{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:7px 12px;font-size:12px;font-family:var(--mono);color:var(--text);text-align:center}
+.cbox.ca{border-color:var(--accent);color:var(--accent2);background:var(--accent-bg)}
+.cbox.ct{border-color:var(--teal);color:var(--teal);background:var(--teal-bg)}
+.cbox.cam{border-color:var(--amber);color:var(--amber);background:var(--amber-bg)}
+.cbox.cg{border-color:var(--green);color:var(--green);background:var(--green-bg)}
+.cbox.cp{border-color:var(--purple);color:var(--purple);background:var(--purple-bg)}
+.ca-arrow{color:var(--text3);padding:0 5px;font-size:15px}
+
+/* RESULT */
+.result-box{background:var(--green-bg);border:1px solid var(--green);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--text);margin-top:12px;display:none}
+.result-box.show{display:block}
+.warn-box{background:var(--red-bg);border:1px solid var(--red);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--text);margin-top:12px;display:none}
+.warn-box.show{display:block}
+
+/* COMPOSITE SPECIFIC */
+.query-btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.comp-leaf{border:1px solid var(--purple);border-radius:8px;background:var(--purple-bg);font-family:var(--mono);font-size:12px;overflow:hidden;margin-bottom:10px}
+.comp-leaf-hd{font-size:10px;color:var(--purple);padding:5px 10px;border-bottom:1px solid var(--border);font-family:var(--sans)}
+.comp-entry{display:flex;gap:0;border-top:1px solid var(--border)}
+.comp-entry:first-child{border-top:none}
+.comp-col{padding:5px 8px;border-right:1px solid var(--border);flex:1}
+.comp-col:last-child{border-right:none}
+.comp-col-hd{font-size:9px;color:var(--text3);margin-bottom:2px;font-family:var(--sans)}
+.comp-col-val{color:var(--text)}
+.comp-col-val.match{color:var(--green);font-weight:600}
+.comp-col-val.miss{color:var(--red);opacity:.6}
+.scan-indicator{height:4px;border-radius:2px;margin-top:8px;transition:width .5s}
+
+/* HERO TAGS */
+.hero-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+.tag{font-size:11px;font-weight:500;font-family:var(--mono);padding:4px 10px;border-radius:4px;border:1px solid var(--border2);color:var(--text2)}
+
+/* INSERT SIMULATOR */
+.insert-demo{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px;margin:14px 0}
+.insert-val-input{background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--mono);font-size:13px;width:120px}
+.insert-log{margin-top:10px;font-size:12px;color:var(--text2);font-family:var(--mono);min-height:30px}
+
+/* THRESHOLD */
+.threshold{border-top:1px dashed var(--red);position:relative;margin:8px 0}
+.threshold::after{content:'~10% threshold';position:absolute;right:0;top:-17px;font-size:10px;color:var(--red);font-family:var(--mono)}
+
+/* SCROLL PROGRESS */
+.progress-bar{position:fixed;top:0;left:0;height:2px;background:var(--accent);z-index:200;transition:width .1s;pointer-events:none}
+
+/* TOOLTIP */
+.tooltip{position:relative;display:inline-block}
+.tooltip .tip{visibility:hidden;background:var(--bg4);color:var(--text);font-size:11px;border-radius:5px;padding:5px 9px;position:absolute;bottom:125%;left:50%;transform:translateX(-50%);white-space:nowrap;border:1px solid var(--border2);z-index:50;font-family:var(--sans)}
+.tooltip:hover .tip{visibility:visible}
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress"></div>
+
+<nav>
+  <span class="nav-logo">DB Index</span>
+  <a href="#intro">Intro</a>
+  <a href="#btree">B-Tree</a>
+  <a href="#page">Page</a>
+  <a href="#slot">Slot</a>
+  <a href="#search">Search</a>
+  <a href="#insert">Insert</a>
+  <a href="#split">Split</a>
+  <a href="#buffer">Buffer</a>
+  <a href="#selectivity">Selectivity</a>
+  <a href="#composite">Composite</a>
+  <a href="#summary">Summary</a>
+</nav>
+
+<!-- INTRO -->
+<section class="section" id="intro">
+  <h1>Database Index</h1>
+  <p style="font-size:17px;color:var(--text2);margin-top:14px;max-width:52ch">Complete visual guide — B-Tree internals, pages, slots, splits, buffer pool, selectivity, and composite indexes.</p>
+  <div class="hero-tags">
+    <span class="tag">B-Tree</span><span class="tag">8KB Pages</span><span class="tag">Slots & ctid</span>
+    <span class="tag">Page Split</span><span class="tag">Buffer Pool</span><span class="tag">Selectivity</span>
+    <span class="tag">Composite Index</span><span class="tag">O(log n)</span>
+  </div>
+  <hr class="divider">
+  <h3>Why index?</h3>
+  <p>Without an index, every query scans every row. With an index, the DB jumps to the right location in 3–4 page reads regardless of table size.</p>
+  <div class="card-row">
+    <div class="card">
+      <div class="badge badge-red" style="margin-bottom:10px">No index — seq scan</div>
+      <pre style="margin:0">SELECT * FROM employees
+WHERE salary = 80000;
+
+→ Read ALL 1,000,000 rows
+→ Compare each one
+→ ~8,000 page reads
+→ Slow</pre>
+    </div>
+    <div class="card">
+      <div class="badge badge-green" style="margin-bottom:10px">With index — O(log n)</div>
+      <pre style="margin:0">SELECT * FROM employees
+WHERE salary = 80000;
+
+→ Traverse B-Tree (3 reads)
+→ ctid → heap page (1 read)
+→ Row found
+→ Fast</pre>
+    </div>
+  </div>
+</section>
+
+<!-- BTREE -->
+<section class="section" id="btree">
+  <h2>B-Tree structure</h2>
+  <p>Three node types. Every node = one 8KB disk page. Always sorted — enables binary-search traversal at every level.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+    <span class="badge badge-accent">Root — single entry point</span>
+    <span class="badge badge-teal">Internal — routing keys only</span>
+    <span class="badge" style="background:var(--bg3);color:var(--text2)">Leaf — key + ctid</span>
+  </div>
+  <div class="tree-wrap">
+    <div class="tree">
+      <div class="tree-level">
+        <div class="node root-node">
+          <div class="node-label">Root node — page 1</div>
+          <div class="node-cells">
+            <div class="node-cell ptr">ptr</div><div class="node-cell">50</div>
+            <div class="node-cell ptr">ptr</div><div class="node-cell">100</div>
+            <div class="node-cell ptr">ptr</div>
+          </div>
+        </div>
+      </div>
+      <svg width="600" height="30" style="overflow:visible">
+        <line x1="130" y1="0" x2="80" y2="30" stroke="#3a4560" stroke-width="1"/>
+        <line x1="230" y1="0" x2="300" y2="30" stroke="#3a4560" stroke-width="1"/>
+        <line x1="330" y1="0" x2="520" y2="30" stroke="#3a4560" stroke-width="1"/>
+      </svg>
+      <div class="tree-level" style="gap:36px">
+        <div class="node internal"><div class="node-label">Internal — page 2</div><div class="node-cells"><div class="node-cell ptr">ptr</div><div class="node-cell">25</div><div class="node-cell ptr">ptr</div></div></div>
+        <div class="node internal"><div class="node-label">Internal — page 3</div><div class="node-cells"><div class="node-cell ptr">ptr</div><div class="node-cell">75</div><div class="node-cell ptr">ptr</div></div></div>
+        <div class="node internal"><div class="node-label">Internal — page 4</div><div class="node-cells"><div class="node-cell ptr">ptr</div><div class="node-cell">110</div><div class="node-cell ptr">ptr</div></div></div>
+      </div>
+      <svg width="600" height="30" style="overflow:visible">
+        <line x1="58" y1="0" x2="28" y2="30" stroke="#3a4560" stroke-width="1"/>
+        <line x1="102" y1="0" x2="128" y2="30" stroke="#3a4560" stroke-width="1"/>
+        <line x1="238" y1="0" x2="218" y2="30" stroke="#3a4560" stroke-width="1"/>
+        <line x1="288" y1="0" x2="308" y2="30" stroke="#3a4560" stroke-width="1"/>
+        <line x1="428" y1="0" x2="418" y2="30" stroke="#3a4560" stroke-width="1"/>
+        <line x1="478" y1="0" x2="508" y2="30" stroke="#3a4560" stroke-width="1"/>
+      </svg>
+      <div class="tree-level" style="gap:8px">
+        <div class="node leaf-node"><div class="node-label">Leaf pg 5</div><div class="leaf-entry"><span class="lkey">10</span><span class="lptr">(1,2)</span></div><div class="leaf-entry"><span class="lkey">18</span><span class="lptr">(1,5)</span></div></div>
+        <div class="node leaf-node"><div class="node-label">Leaf pg 6</div><div class="leaf-entry"><span class="lkey">30</span><span class="lptr">(2,1)</span></div><div class="leaf-entry"><span class="lkey">42</span><span class="lptr">(2,4)</span></div></div>
+        <div class="node leaf-node"><div class="node-label">Leaf pg 7</div><div class="leaf-entry"><span class="lkey">55</span><span class="lptr">(3,1)</span></div><div class="leaf-entry"><span class="lkey">80</span><span class="lptr">(4,3)</span></div></div>
+        <div class="node leaf-node"><div class="node-label">Leaf pg 8</div><div class="leaf-entry"><span class="lkey">90</span><span class="lptr">(5,2)</span></div><div class="leaf-entry"><span class="lkey">95</span><span class="lptr">(6,1)</span></div></div>
+        <div class="node leaf-node"><div class="node-label">Leaf pg 9</div><div class="leaf-entry"><span class="lkey">105</span><span class="lptr">(7,3)</span></div><div class="leaf-entry"><span class="lkey">120</span><span class="lptr">(8,1)</span></div></div>
+        <div class="node leaf-node"><div class="node-label">Leaf pg 10</div><div class="leaf-entry"><span class="lkey">130</span><span class="lptr">(9,2)</span></div><div class="leaf-entry"><span class="lkey">150</span><span class="lptr">(9,4)</span></div></div>
+      </div>
+    </div>
+  </div>
+  <div style="font-size:11px;color:var(--text3);margin-top:10px">Leaves linked left→right for range scans. Each entry = key value + ctid (heap address).</div>
+  <hr class="divider">
+  <div class="card-row">
+    <div class="card">
+      <div class="badge badge-accent" style="margin-bottom:8px">Leaf node — what's inside</div>
+      <pre style="margin:0;font-size:11px">key      →  ctid
+────────────────────
+42,000   →  (page 1, slot 4)
+67,000   →  (page 3, slot 2)
+80,000   →  (page 4, slot 3)
+95,000   →  (page 5, slot 2)
+  ↑              ↑
+salary value  heap address</pre>
+    </div>
+    <div class="card">
+      <div class="badge badge-teal" style="margin-bottom:8px">Internal node — routing only</div>
+      <pre style="margin:0;font-size:11px">keys + child pointers only.
+No row data at all.
+
+ptr | 50 | ptr | 100 | ptr
+ ↓           ↓          ↓
+&lt;50       50-100      &gt;100
+
+Purpose: guide search to
+the correct leaf page.</pre>
+    </div>
+  </div>
+</section>
+
+<!-- PAGE -->
+<section class="section" id="page">
+  <h2>What is a page?</h2>
+  <p>8KB block — minimum unit of disk I/O. The OS never reads less than one block. Heap pages store rows; index pages store B-Tree nodes. Same structure, different content.</p>
+  <div class="card-row">
+    <div>
+      <h3>Heap page (table rows)</h3>
+      <div class="page-visual">
+        <div class="phbar"><span>heap page 4 — employees</span><span>8192 bytes</span></div>
+        <div class="psec"><div class="psec-lbl">Page header (24 bytes)</div><div style="font-size:10px;color:var(--text3);font-family:var(--sans)">LSN, checksum, free space pointers</div></div>
+        <div class="psec"><div class="psec-lbl">Slot array (grows ↓)</div>
+          <div class="slot-row"><span class="sn">slot 1</span><span class="so">off=7500</span><span class="sl">len=80</span><span class="badge badge-green" style="font-size:9px">live</span></div>
+          <div class="slot-row"><span class="sn">slot 2</span><span class="so">off=7420</span><span class="sl">len=72</span><span class="badge badge-red" style="font-size:9px">dead</span></div>
+          <div class="slot-row"><span class="sn">slot 3</span><span class="so">off=7340</span><span class="sl">len=50</span><span class="badge badge-green" style="font-size:9px">live</span></div>
+        </div>
+        <div class="psec" style="background:rgba(99,102,241,0.04)"><div class="psec-lbl">Free space (middle ~3KB)</div></div>
+        <div class="psec"><div class="psec-lbl">Row data (grows ↑)</div>
+          <div class="rbytes"><span class="rlbl">slot 3 → </span>id=3|name="Carol"|dept="Eng"|salary=110000</div>
+          <div class="rbytes" style="opacity:.35"><span class="rlbl">slot 2 → </span>[dead — awaiting VACUUM]</div>
+          <div class="rbytes"><span class="rlbl">slot 1 → </span>id=4|name="Dave"|dept="Mkt"|salary=80000</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3>Index page (B-Tree leaf)</h3>
+      <div class="page-visual">
+        <div class="phbar"><span>index leaf — idx_salary</span><span>8192 bytes</span></div>
+        <div class="psec"><div class="psec-lbl">Page header (24 bytes)</div><div style="font-size:10px;color:var(--text3);font-family:var(--sans)">LSN, checksum, left/right sibling ptrs</div></div>
+        <div class="psec"><div class="psec-lbl">Slot array (grows ↓)</div>
+          <div class="slot-row"><span class="sn">slot 1</span><span class="so">off=7600</span><span class="sl">len=16</span><span class="badge badge-green" style="font-size:9px">live</span></div>
+          <div class="slot-row"><span class="sn">slot 2</span><span class="so">off=7580</span><span class="sl">len=16</span><span class="badge badge-green" style="font-size:9px">live</span></div>
+          <div class="slot-row"><span class="sn">slot 3</span><span class="so">off=7560</span><span class="sl">len=16</span><span class="badge badge-green" style="font-size:9px">live</span></div>
+        </div>
+        <div class="psec" style="background:rgba(99,102,241,0.04)"><div class="psec-lbl">Free space (large — entries are small)</div></div>
+        <div class="psec"><div class="psec-lbl">Index entries (grows ↑)</div>
+          <div class="rbytes"><span class="rlbl">slot 3 → </span>key=95000 | ctid=(5,2)</div>
+          <div class="rbytes"><span class="rlbl">slot 2 → </span>key=80000 | ctid=(4,3)</div>
+          <div class="rbytes"><span class="rlbl">slot 1 → </span>key=67000 | ctid=(3,2)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="border-color:var(--accent)">
+    <strong style="color:var(--accent2)">Key insight:</strong> <span style="color:var(--text2)">Page structure is identical — same header, same slot array, same 8KB. Only content differs. Buffer pool treats both as plain 8KB blocks.</span>
+  </div>
+</section>
+
+<!-- SLOT -->
+<section class="section" id="slot">
+  <h2>Slot & offset</h2>
+  <p>Slot = a two-number directory entry inside a page. Offset = byte position of a row within that 8KB block. Nothing more.</p>
+  <pre>slot 1:  offset = 7500,  length = 80
+          ↓
+          "go to byte 7500 inside this page, read 80 bytes → your row"</pre>
+  <h3>Full lookup chain</h3>
+  <div class="chain">
+    <div class="cbox ca">ctid=(page 4, slot 3)</div><span class="ca-arrow">→</span>
+    <div class="cbox">load page 4 (8KB)</div><span class="ca-arrow">→</span>
+    <div class="cbox ct">slot 3: off=7340</div><span class="ca-arrow">→</span>
+    <div class="cbox cam">jump to byte 7340</div><span class="ca-arrow">→</span>
+    <div class="cbox cg">row found</div>
+  </div>
+  <p>Full page always loads (I/O min unit = 1 block). But Postgres does <strong>not</strong> scan the page — it jumps directly using the offset. No per-byte scan inside the page.</p>
+  <hr class="divider">
+  <h3>Why indirection? — the slot is stable, the offset can change</h3>
+  <div class="card-row">
+    <div class="card">
+      <div class="badge badge-red" style="margin-bottom:8px">Without slots</div>
+      <p style="margin:0;font-size:13px">Index stores offset directly. Row moves after UPDATE/VACUUM → every index entry must be updated. O(n) index rewrites per row move.</p>
+    </div>
+    <div class="card">
+      <div class="badge badge-green" style="margin-bottom:8px">With slots</div>
+      <p style="margin:0;font-size:13px">Index stores slot number (stable forever). Slot stores offset (can change freely). Row moves → only one slot entry updates. Index untouched.</p>
+    </div>
+  </div>
+  <h3>Interactive — click a slot to trace</h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+    <button onclick="traceSlot(1)">Trace slot 1</button>
+    <button onclick="traceSlot(2)">Trace slot 2 (dead)</button>
+    <button onclick="traceSlot(3)">Trace slot 3</button>
+    <button onclick="traceSlot(0)">Reset</button>
+  </div>
+  <div class="page-visual" style="max-width:480px">
+    <div class="phbar"><span>heap page 4</span><span>8192 bytes</span></div>
+    <div class="psec"><div class="psec-lbl">Slot array</div>
+      <div class="slot-row" id="slotrow1" style="transition:background .2s"><span class="sn">slot 1</span><span class="so">off=7500</span><span class="sl">len=80</span><span class="badge badge-green" style="font-size:9px">live</span></div>
+      <div class="slot-row" id="slotrow2" style="transition:background .2s"><span class="sn">slot 2</span><span class="so">off=7420</span><span class="sl">len=72</span><span class="badge badge-red" style="font-size:9px">dead</span></div>
+      <div class="slot-row" id="slotrow3" style="transition:background .2s"><span class="sn">slot 3</span><span class="so">off=7340</span><span class="sl">len=50</span><span class="badge badge-green" style="font-size:9px">live</span></div>
+    </div>
+    <div class="psec" style="background:rgba(99,102,241,0.04)"><div class="psec-lbl">Free space</div></div>
+    <div class="psec">
+      <div class="rbytes" id="rowbytes1" style="transition:background .2s"><span class="rlbl">@ byte 7500 → </span>id=4|name="Dave"|dept="Mkt"|salary=80000</div>
+      <div class="rbytes" id="rowbytes2" style="transition:background .2s;opacity:.35"><span class="rlbl">@ byte 7420 → </span>[dead row]</div>
+      <div class="rbytes" id="rowbytes3" style="transition:background .2s"><span class="rlbl">@ byte 7340 → </span>id=3|name="Carol"|dept="Eng"|salary=110000</div>
+    </div>
+  </div>
+  <div class="step-info" id="slot-trace-info" style="margin-top:10px">Click a slot above to see how offset maps to a row.</div>
+</section>
+
+<!-- SEARCH -->
+<section class="section" id="search">
+  <h2>Interactive search — O(log n)</h2>
+  <p>Select a salary. Watch the tree highlight the exact path. Every highlighted node = one disk page read.</p>
+  <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px 16px;display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap">
+    <label style="font-size:13px;color:var(--text2)">Search salary:</label>
+    <select id="search-val" onchange="doSearch(this.value)" style="background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--mono);font-size:13px;cursor:pointer">
+      <option value="">— pick a value —</option>
+      <option value="42000">42,000</option>
+      <option value="67000">67,000</option>
+      <option value="80000">80,000</option>
+      <option value="95000">95,000</option>
+      <option value="110000">110,000</option>
+      <option value="130000">130,000</option>
+    </select>
+    <button onclick="document.getElementById('search-val').value='';clearSearch()">Reset</button>
+  </div>
+  <div class="tree-wrap">
+    <div class="tree">
+      <div class="tree-level">
+        <div class="node root-node" id="sn-root">
+          <div class="node-label">Root — page 1</div>
+          <div class="node-cells">
+            <div class="node-cell ptr" id="sp-l">&lt;80k</div>
+            <div class="node-cell" id="sk-80">80,000</div>
+            <div class="node-cell ptr" id="sp-r">≥80k</div>
+          </div>
+        </div>
+      </div>
+      <svg width="400" height="26" style="overflow:visible">
+        <line x1="120" y1="0" x2="60" y2="26" stroke="#3a4560" stroke-width="1"/>
+        <line x1="200" y1="0" x2="280" y2="26" stroke="#3a4560" stroke-width="1"/>
+      </svg>
+      <div class="tree-level" style="gap:28px">
+        <div class="node internal" id="sn-left"><div class="node-label">Internal — page 2</div><div class="node-cells"><div class="node-cell ptr">&lt;67k</div><div class="node-cell">67,000</div><div class="node-cell ptr">≥67k</div></div></div>
+        <div class="node internal" id="sn-right"><div class="node-label">Internal — page 3</div><div class="node-cells"><div class="node-cell ptr">&lt;110k</div><div class="node-cell">110,000</div><div class="node-cell ptr">≥110k</div></div></div>
+      </div>
+      <svg width="480" height="26" style="overflow:visible">
+        <line x1="58" y1="0" x2="28" y2="26" stroke="#3a4560" stroke-width="1"/>
+        <line x1="108" y1="0" x2="138" y2="26" stroke="#3a4560" stroke-width="1"/>
+        <line x1="288" y1="0" x2="258" y2="26" stroke="#3a4560" stroke-width="1"/>
+        <line x1="348" y1="0" x2="378" y2="26" stroke="#3a4560" stroke-width="1"/>
+      </svg>
+      <div class="tree-level" style="gap:8px">
+        <div class="node leaf-node" id="sn-la"><div class="node-label">Leaf pg 4</div><div class="leaf-entry" id="le-42"><span class="lkey">42,000</span><span class="lptr">(1,4)</span></div></div>
+        <div class="node leaf-node" id="sn-lb"><div class="node-label">Leaf pg 5</div><div class="leaf-entry" id="le-67"><span class="lkey">67,000</span><span class="lptr">(3,2)</span></div></div>
+        <div class="node leaf-node" id="sn-lc"><div class="node-label">Leaf pg 6</div><div class="leaf-entry" id="le-80"><span class="lkey">80,000</span><span class="lptr">(4,3)</span></div><div class="leaf-entry" id="le-95"><span class="lkey">95,000</span><span class="lptr">(5,2)</span></div></div>
+        <div class="node leaf-node" id="sn-ld"><div class="node-label">Leaf pg 7</div><div class="leaf-entry" id="le-110"><span class="lkey">110,000</span><span class="lptr">(7,1)</span></div><div class="leaf-entry" id="le-130"><span class="lkey">130,000</span><span class="lptr">(9,2)</span></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-family:var(--mono)">I/O log</div>
+    <div class="io-log" id="io-log"><div style="color:var(--text3);font-size:12px">Select a salary above.</div></div>
+  </div>
+  <div class="result-box" id="result-box"></div>
+</section>
+
+<!-- INSERT SIMULATOR -->
+<section class="section" id="insert">
+  <h2>Insert simulator</h2>
+  <p>Type a salary value and insert it. Watch where it lands in the sorted index. If the leaf is full, a split triggers automatically.</p>
+  <div class="insert-demo">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input class="insert-val-input" type="number" id="insert-val" placeholder="e.g. 58000" min="1" max="200000" step="1000">
+      <button onclick="doInsert()">INSERT →</button>
+      <button onclick="resetInsert()">Reset</button>
+    </div>
+    <div class="insert-log" id="insert-log"></div>
+  </div>
+  <h3>Current leaf state</h3>
+  <div id="insert-leaf-display"></div>
+  <div class="step-info" id="insert-step-info">Enter a salary and press INSERT to see where it goes.</div>
+</section>
+
+<!-- SPLIT -->
+<section class="section" id="split">
+  <h2>Page split</h2>
+  <p>When a full page gets a new key, Postgres can't extend it — the 8KB block is fixed. It splits the page into two halves and promotes the middle key to the parent.</p>
+  <div class="split-scene" id="split-scene"></div>
+  <div class="step-info" id="split-info"></div>
+  <div class="stepper-nav">
+    <button id="sp-prev" onclick="splitGo(-1)" disabled>← Back</button>
+    <button id="sp-next" onclick="splitGo(1)">Next →</button>
+    <div class="sdots" id="split-dots"></div>
+    <span id="split-label" style="font-size:12px;color:var(--text3);margin-left:auto"></span>
+  </div>
+</section>
+
+<!-- BUFFER POOL -->
+<section class="section" id="buffer">
+  <h2>Buffer pool</h2>
+  <p>Fixed RAM cache. Every page — heap or index — goes through it. Disk I/O only on a miss. Nothing more complex than that.</p>
+  <pre>shared_buffers = 256MB   ← postgresql.conf
+
+HIT  →  page in RAM     →  nanoseconds
+MISS →  load from disk  →  milliseconds (1000× slower)</pre>
+  <h3>Simulate queries — watch hits vs misses</h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <button id="bpbtn1" onclick="bpQuery(1)">Query 1: salary=80,000</button>
+    <button id="bpbtn2" onclick="bpQuery(2)">Query 2: salary=42,000</button>
+    <button id="bpbtn3" onclick="bpQuery(3)">Query 3: salary=80,000 again</button>
+    <button onclick="bpReset()">Reset</button>
+  </div>
+  <div class="bp-grid" id="bp-grid"></div>
+  <div style="display:flex;gap:12px;font-size:11px;color:var(--text3);margin-bottom:8px">
+    <span><span style="display:inline-block;width:10px;height:10px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:2px;margin-right:4px"></span>newly loaded</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:var(--green-bg);border:1px solid var(--green);border-radius:2px;margin-right:4px"></span>cache HIT</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border:1px dashed var(--border2);border-radius:2px;margin-right:4px"></span>empty</span>
+  </div>
+  <div class="step-info" id="bp-info">Buffer pool is cold — all pages on disk.</div>
+  <hr class="divider">
+  <h3>LRU eviction — when pool is full</h3>
+  <pre>New page needed, pool full:
+  → find LRU page (least recently used)
+  → if dirty (modified) → write to disk first
+  → evict it → load new page
+
+Root page almost never evicted — every query touches it.
+Heap pages more likely evicted — accessed less frequently.</pre>
+</section>
+
+<!-- SELECTIVITY -->
+<section class="section" id="selectivity">
+  <h2>Cardinality & selectivity</h2>
+  <p><strong style="color:var(--text)">Cardinality</strong> = distinct values in a column. <strong style="color:var(--text)">Selectivity</strong> = rows matched / total rows.</p>
+  <p>Low selectivity value → few rows match → index useful. High selectivity → many rows match → planner skips index.</p>
+  <h3>Drag the slider — watch the planner decision change</h3>
+  <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px;margin:14px 0">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <label style="font-size:13px;color:var(--text2);white-space:nowrap">Rows matched: <strong id="sel-pct-label" style="color:var(--text);font-family:var(--mono)">5%</strong> of 1,000,000</label>
+      <input type="range" id="sel-slider" min="0" max="100" value="5" step="1" style="flex:1;min-width:120px" oninput="updateSelSlider(this.value)">
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px">rows matched</div>
+        <div style="height:8px;background:var(--bg4);border-radius:4px;overflow:hidden"><div id="sel-bar" style="height:100%;border-radius:4px;background:var(--green);transition:width .3s,background .3s;width:5%"></div></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px" id="sel-row-count">50,000 rows</div>
+      </div>
+      <div id="sel-decision" style="background:var(--green-bg);border:1px solid var(--green);border-radius:8px;padding:10px 16px;font-size:13px;font-family:var(--mono);color:var(--green);transition:all .3s;min-width:180px;text-align:center">
+        Index scan ✓
+      </div>
+    </div>
+    <div id="sel-reason" style="font-size:12px;color:var(--text3);margin-top:10px;font-family:var(--mono)">50,000 rows × ~1 heap I/O each = manageable. Index wins.</div>
+  </div>
+  <div class="card-grid" id="sel-cards"></div>
+  <div class="threshold"></div>
+  <div class="card" style="margin-top:20px">
+    <h3 style="margin-bottom:10px">Index scan vs seq scan cost</h3>
+    <div class="card-row" style="margin:0">
+      <div>
+        <div class="badge badge-green" style="margin-bottom:8px">Index scan</div>
+        <pre style="margin:0;font-size:11px">tree traversal (~3 reads)
++ heap fetch per row (random I/O)
+
+good: few rows, scattered pages
+cost grows with row count</pre>
+      </div>
+      <div>
+        <div class="badge badge-teal" style="margin-bottom:8px">Sequential scan</div>
+        <pre style="margin:0;font-size:11px">read all pages in order
+OS prefetch works
+no per-row overhead
+
+good: many rows, all pages anyway
+cost is flat regardless</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPOSITE INDEX -->
+<section class="section" id="composite">
+  <h2>Composite index</h2>
+  <p>An index on multiple columns. The key in each leaf node is a tuple — all columns combined, sorted lexicographically by the column order you declare.</p>
+  <pre>CREATE INDEX idx_dept_salary ON employees(department, salary);
+
+Leaf key = (department, salary) combined:
+  ("Eng", 42000) → (page 1, slot 3)
+  ("Eng", 67000) → (page 2, slot 1)
+  ("Eng", 80000) → (page 4, slot 2)
+  ("HR",  55000) → (page 3, slot 1)
+  ("HR",  95000) → (page 5, slot 2)
+  ("Mkt", 72000) → (page 6, slot 4)
+
+Sorted: dept first, salary second within each dept.</pre>
+
+  <hr class="divider">
+  <h3>The leaf node — composite key</h3>
+  <div class="comp-leaf" style="max-width:500px">
+    <div class="comp-leaf-hd">idx_dept_salary — leaf page (sorted by dept, then salary)</div>
+    <div class="comp-entry">
+      <div class="comp-col"><div class="comp-col-hd">department (col 1)</div><div class="comp-col-val">Eng</div></div>
+      <div class="comp-col"><div class="comp-col-hd">salary (col 2)</div><div class="comp-col-val">42,000</div></div>
+      <div class="comp-col"><div class="comp-col-hd">ctid</div><div class="comp-col-val">(1,3)</div></div>
+    </div>
+    <div class="comp-entry">
+      <div class="comp-col"><div class="comp-col-hd">department</div><div class="comp-col-val">Eng</div></div>
+      <div class="comp-col"><div class="comp-col-hd">salary</div><div class="comp-col-val">67,000</div></div>
+      <div class="comp-col"><div class="comp-col-hd">ctid</div><div class="comp-col-val">(2,1)</div></div>
+    </div>
+    <div class="comp-entry">
+      <div class="comp-col"><div class="comp-col-hd">department</div><div class="comp-col-val">Eng</div></div>
+      <div class="comp-col"><div class="comp-col-hd">salary</div><div class="comp-col-val">80,000</div></div>
+      <div class="comp-col"><div class="comp-col-hd">ctid</div><div class="comp-col-val">(4,2)</div></div>
+    </div>
+    <div class="comp-entry">
+      <div class="comp-col"><div class="comp-col-hd">department</div><div class="comp-col-val">HR</div></div>
+      <div class="comp-col"><div class="comp-col-hd">salary</div><div class="comp-col-val">55,000</div></div>
+      <div class="comp-col"><div class="comp-col-hd">ctid</div><div class="comp-col-val">(3,1)</div></div>
+    </div>
+    <div class="comp-entry">
+      <div class="comp-col"><div class="comp-col-hd">department</div><div class="comp-col-val">Mkt</div></div>
+      <div class="comp-col"><div class="comp-col-hd">salary</div><div class="comp-col-val">72,000</div></div>
+      <div class="comp-col"><div class="comp-col-hd">ctid</div><div class="comp-col-val">(6,4)</div></div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <h3>Column order — the most important rule</h3>
+  <p>The index is sorted by the <strong style="color:var(--text)">first column first</strong>. Second column is only sorted <em>within</em> each value of the first. This determines which queries can use the index.</p>
+
+  <h3>Interactive query tester</h3>
+  <p style="font-size:13px">Index: <code>CREATE INDEX ON employees(department, salary)</code> — click a query to see if the index is used and why.</p>
+  <div class="query-btn-row" id="comp-query-btns"></div>
+  <div id="comp-result-area"></div>
+
+  <hr class="divider">
+  <h3>Left-prefix rule — visualized</h3>
+  <div class="card-row">
+    <div class="card" style="border-color:var(--green)">
+      <div class="badge badge-green" style="margin-bottom:8px">Leading column used — index works</div>
+      <pre style="margin:0;font-size:11px">WHERE dept = 'Eng'
+  → tree can navigate to dept='Eng' block
+  → scan only those entries
+  → index used ✓
+
+WHERE dept = 'Eng' AND salary = 80000
+  → navigate to dept='Eng', salary=80000
+  → exact match
+  → index used ✓
+
+WHERE dept = 'Eng' AND salary > 60000
+  → navigate to dept='Eng'
+  → scan salary range within that dept
+  → index used ✓</pre>
+    </div>
+    <div class="card" style="border-color:var(--red)">
+      <div class="badge badge-red" style="margin-bottom:8px">No leading column — index skipped</div>
+      <pre style="margin:0;font-size:11px">WHERE salary = 80000
+  → salary is col 2
+  → col 1 (dept) unknown
+  → entries are scattered everywhere
+  → full index scan or seq scan ✗
+
+WHERE salary > 60000
+  → same problem
+  → can't anchor on col 1
+  → index skipped ✗
+
+→ need separate idx ON (salary)
+  for salary-only queries</pre>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <h3>Covering index — skip the heap fetch entirely</h3>
+  <p>If the index contains all columns the query needs, Postgres never touches the heap. The leaf node has everything.</p>
+  <pre>CREATE INDEX idx_cov ON employees(department, salary) INCLUDE (name);
+
+SELECT name, salary FROM employees WHERE department = 'Eng';
+  → index-only scan
+  → leaf has: dept + salary + name + ctid
+  → query satisfied from leaf alone
+  → heap fetch = 0
+  → fastest possible read</pre>
+
+  <div class="card-row">
+    <div class="card">
+      <div class="badge badge-amber" style="margin-bottom:8px">Normal index</div>
+      <div class="chain" style="flex-direction:column;gap:6px;margin:0">
+        <div style="display:flex;align-items:center;gap:6px"><div class="cbox ca" style="font-size:11px">leaf (key+ctid)</div><span class="ca-arrow">→</span><div class="cbox cam" style="font-size:11px">heap fetch</div><span class="ca-arrow">→</span><div class="cbox cg" style="font-size:11px">row</div></div>
+        <div style="font-size:11px;color:var(--text3)">2 page types read per row</div>
+      </div>
+    </div>
+    <div class="card" style="border-color:var(--green)">
+      <div class="badge badge-green" style="margin-bottom:8px">Covering index</div>
+      <div class="chain" style="flex-direction:column;gap:6px;margin:0">
+        <div style="display:flex;align-items:center;gap:6px"><div class="cbox cg" style="font-size:11px">leaf (key+extra cols+ctid)</div><span class="ca-arrow">→</span><div class="cbox cg" style="font-size:11px">done</div></div>
+        <div style="font-size:11px;color:var(--text3)">heap never touched — index-only scan</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <h3>Column order decision guide</h3>
+  <table>
+    <thead><tr><th>Query pattern</th><th>Best index column order</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td>WHERE dept = ? AND salary = ?</td><td>(dept, salary)</td><td>Both cols used, high-cardinality second</td></tr>
+      <tr><td>WHERE dept = ? AND salary &gt; ?</td><td>(dept, salary)</td><td>Range on second col works fine</td></tr>
+      <tr><td>WHERE salary = ? AND dept = ?</td><td>(dept, salary)</td><td>Order in WHERE doesn't matter — col order in index does</td></tr>
+      <tr><td>WHERE dept = ? only</td><td>(dept, salary)</td><td>Leading col alone still uses index</td></tr>
+      <tr><td>WHERE salary = ? only</td><td>Separate idx on (salary)</td><td>No leading col match — composite useless</td></tr>
+      <tr><td>ORDER BY dept, salary</td><td>(dept, salary)</td><td>Index already sorted — no sort step needed</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- SUMMARY -->
+<section class="section" id="summary">
+  <h2>Full lookup chain</h2>
+  <div class="chain" style="flex-direction:column;align-items:flex-start;gap:8px">
+    <div style="display:flex;align-items:center;gap:8px"><div class="cbox ca">Query: WHERE salary=80000</div></div>
+    <div style="padding-left:16px;color:var(--text3)">↓ traverse B-Tree</div>
+    <div style="display:flex;align-items:center;gap:8px"><div class="cbox">Root page (usually cached)</div><span style="font-size:11px;color:var(--text3)">— 1 page read</span></div>
+    <div style="padding-left:16px;color:var(--text3)">↓</div>
+    <div style="display:flex;align-items:center;gap:8px"><div class="cbox">Internal node</div><span style="font-size:11px;color:var(--text3)">— 1 page read</span></div>
+    <div style="padding-left:16px;color:var(--text3)">↓</div>
+    <div style="display:flex;align-items:center;gap:8px"><div class="cbox ct">Leaf page</div><span style="font-size:11px;color:var(--text3)">— 1 page read → key + ctid found</span></div>
+    <div style="padding-left:16px;color:var(--text3)">↓ heap fetch (skipped if covering index)</div>
+    <div style="display:flex;align-items:center;gap:8px"><div class="cbox cam">Heap page load (8KB)</div><span style="font-size:11px;color:var(--text3)">— random I/O</span></div>
+    <div style="padding-left:16px;color:var(--text3)">↓</div>
+    <div style="display:flex;align-items:center;gap:8px"><div class="cbox">Slot → offset = byte addr</div></div>
+    <div style="padding-left:16px;color:var(--text3)">↓</div>
+    <div style="display:flex;align-items:center;gap:8px"><div class="cbox cg">Row returned</div></div>
+  </div>
+  <hr class="divider">
+  <h2>Concept reference</h2>
+  <table>
+    <thead><tr><th>Concept</th><th>What it is</th><th>Key detail</th></tr></thead>
+    <tbody>
+      <tr><td>Page / block</td><td>Minimum disk I/O unit</td><td>8KB fixed</td></tr>
+      <tr><td>B-Tree node</td><td>Root / internal / leaf — one per page</td><td>8KB each</td></tr>
+      <tr><td>Leaf key</td><td>The indexed column value(s)</td><td>Actual data, sorted</td></tr>
+      <tr><td>ctid</td><td>Heap address in leaf</td><td>(page_num, slot_num)</td></tr>
+      <tr><td>Slot</td><td>Directory entry inside a page</td><td>offset + length</td></tr>
+      <tr><td>Offset</td><td>Byte position of row in page</td><td>0–8191, direct jump</td></tr>
+      <tr><td>Heap page</td><td>Actual row storage</td><td>~40 rows avg per page</td></tr>
+      <tr><td>Buffer pool</td><td>RAM cache for all pages</td><td>shared_buffers, LRU evict</td></tr>
+      <tr><td>Page split</td><td>Full leaf split into two</td><td>3 writes + WAL</td></tr>
+      <tr><td>Cardinality</td><td>Distinct values in column</td><td>Higher = better index candidate</td></tr>
+      <tr><td>Selectivity</td><td>Fraction of rows matched</td><td>&lt;10% → index used</td></tr>
+      <tr><td>Composite index</td><td>Multi-column key in leaf</td><td>Left-prefix rule applies</td></tr>
+      <tr><td>Covering index</td><td>Index has all needed cols</td><td>No heap fetch → fastest</td></tr>
+      <tr><td>O(log n)</td><td>Search cost</td><td>Tree height ~3–4 levels</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<script>
+// ── PROGRESS BAR ────────────────────────────────────────
+window.addEventListener('scroll',()=>{
+  const h=document.documentElement;
+  const pct=(window.scrollY/(h.scrollHeight-h.clientHeight))*100;
+  document.getElementById('progress').style.width=pct+'%';
+},{passive:true});
+
+// ── NAV HIGHLIGHT ────────────────────────────────────────
+const allSections=document.querySelectorAll('.section');
+const navLinks=document.querySelectorAll('nav a');
+window.addEventListener('scroll',()=>{
+  let cur='';
+  allSections.forEach(s=>{if(window.scrollY>=s.offsetTop-90)cur=s.id;});
+  navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+cur));
+},{passive:true});
+
+// ── SLOT TRACE ──────────────────────────────────────────
+const slotData={
+  1:{offset:7500,len:80,status:'live',row:'id=4 | name="Dave" | dept="Mkt" | salary=80,000'},
+  2:{offset:7420,len:72,status:'dead',row:'[dead — deleted, awaiting VACUUM cleanup]'},
+  3:{offset:7340,len:50,status:'live',row:'id=3 | name="Carol" | dept="Eng" | salary=110,000'},
+};
+function traceSlot(n){
+  [1,2,3].forEach(i=>{
+    document.getElementById('slotrow'+i).style.background='';
+    document.getElementById('rowbytes'+i).style.background='';
+    document.getElementById('rowbytes'+i).style.opacity=i===2?'0.35':'1';
+  });
+  const info=document.getElementById('slot-trace-info');
+  if(!n){info.innerHTML='Click a slot to trace.';return;}
+  const d=slotData[n];
+  document.getElementById('slotrow'+n).style.background=d.status==='live'?'var(--green-bg)':'var(--red-bg)';
+  document.getElementById('rowbytes'+n).style.background=d.status==='live'?'var(--green-bg)':'var(--red-bg)';
+  document.getElementById('rowbytes'+n).style.opacity='1';
+  if(d.status==='live'){
+    info.innerHTML=`<strong>Slot ${n}</strong> → offset=${d.offset}, length=${d.len}<br>Jump to byte ${d.offset} in the 8KB page → read ${d.len} bytes → <span style="color:var(--green)">${d.row}</span>`;
+  } else {
+    info.innerHTML=`<strong>Slot ${n}</strong> → offset=${d.offset}, length=${d.len} — <span style="color:var(--red)">dead row</span><br>Row was deleted. Slot marked dead. VACUUM will eventually reclaim this space and reuse the slot.`;
+  }
+}
+
+// ── SEARCH ──────────────────────────────────────────────
+const searchData={
+  42000:{side:'left',leaf:'sn-la',entry:'le-42',internal:'sn-left',ctid:'(1,4)',pages:['Root pg1','Internal pg2','Leaf pg4','Heap pg1']},
+  67000:{side:'left',leaf:'sn-lb',entry:'le-67',internal:'sn-left',ctid:'(3,2)',pages:['Root pg1','Internal pg2','Leaf pg5','Heap pg3']},
+  80000:{side:'right',leaf:'sn-lc',entry:'le-80',internal:'sn-right',ctid:'(4,3)',pages:['Root pg1','Internal pg3','Leaf pg6','Heap pg4']},
+  95000:{side:'right',leaf:'sn-lc',entry:'le-95',internal:'sn-right',ctid:'(5,2)',pages:['Root pg1','Internal pg3','Leaf pg6','Heap pg5']},
+  110000:{side:'right',leaf:'sn-ld',entry:'le-110',internal:'sn-right',ctid:'(7,1)',pages:['Root pg1','Internal pg3','Leaf pg7','Heap pg7']},
+  130000:{side:'right',leaf:'sn-ld',entry:'le-130',internal:'sn-right',ctid:'(9,2)',pages:['Root pg1','Internal pg3','Leaf pg7','Heap pg9']},
+};
+function clearSearch(){
+  ['sn-root','sn-left','sn-right','sn-la','sn-lb','sn-lc','sn-ld'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('highlight','found');});
+  ['le-42','le-67','le-80','le-95','le-110','le-130'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active-entry','found-entry');});
+  document.getElementById('io-log').innerHTML='<div style="color:var(--text3);font-size:12px">Select a salary above.</div>';
+  document.getElementById('result-box').classList.remove('show');
+}
+function doSearch(val){
+  clearSearch();if(!val)return;
+  const d=searchData[parseInt(val)];if(!d)return;
+  document.getElementById('sn-root').classList.add('highlight');
+  setTimeout(()=>{
+    document.getElementById(d.internal).classList.add('highlight');
+    setTimeout(()=>{
+      document.getElementById(d.leaf).classList.add('found');
+      document.getElementById(d.entry).classList.add('found-entry');
+      const log=document.getElementById('io-log');log.innerHTML='';
+      const descs=[
+        `Read root (${d.pages[0]}) — compare ${Number(val).toLocaleString()} against keys → go ${d.side}`,
+        `Read internal (${d.pages[1]}) — follow pointer to correct leaf`,
+        `Read leaf (${d.pages[2]}) — found key ${Number(val).toLocaleString()} → ctid=${d.ctid}`,
+        `Read heap (${d.pages[3]}) — load 8KB page → slot offset → row bytes extracted`,
+      ];
+      const badges=['badge-accent','badge-accent','badge-teal','badge-amber'];
+      descs.forEach((desc,i)=>{
+        const row=document.createElement('div');
+        row.className='io-entry';row.style.animationDelay=(i*0.12)+'s';
+        row.innerHTML=`<span class="io-num">#${i+1}</span><span class="badge ${badges[i]}" style="flex-shrink:0">${i<3?'index':'heap'}</span><span class="io-desc">${desc}</span><span class="io-sz">8KB</span>`;
+        log.appendChild(row);
+      });
+      const rb=document.getElementById('result-box');
+      rb.innerHTML=`<strong>4 page reads total</strong> — 3 index + 1 heap. ctid=${d.ctid} → slot offset → direct byte jump → row found.`;
+      rb.classList.add('show');
+    },400);
+  },300);
+}
+
+// ── INSERT SIMULATOR ─────────────────────────────────────
+let insertLeaf=[42000,67000,80000,95000];
+const LEAF_MAX=6;
+function renderInsertLeaf(){
+  const d=document.getElementById('insert-leaf-display');
+  const full=insertLeaf.length>=LEAF_MAX;
+  d.innerHTML=`
+    <div class="page-visual" style="max-width:400px">
+      <div class="phbar"><span>leaf page (salary index)</span><span>${insertLeaf.length}/${LEAF_MAX} slots used ${full?'— FULL':''}</span></div>
+      <div class="psec">
+        ${insertLeaf.map((v,i)=>`<div class="rbytes" id="il-${i}"><span class="rlbl">slot ${i+1} → </span>${v.toLocaleString()}</div>`).join('')}
+        ${Array(LEAF_MAX-insertLeaf.length).fill(0).map(()=>`<div class="rbytes" style="color:var(--text3);font-style:italic">— empty —</div>`).join('')}
+      </div>
+    </div>
+    <div style="height:8px;background:var(--bg4);border-radius:4px;margin-top:8px;overflow:hidden;max-width:400px">
+      <div style="height:100%;border-radius:4px;background:${full?'var(--red)':'var(--teal)'};width:${Math.round(insertLeaf.length/LEAF_MAX*100)}%;transition:width .4s,background .4s"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:4px">${insertLeaf.length}/${LEAF_MAX} capacity used ${full?'<span style="color:var(--red)">— next insert will trigger split</span>':''}</div>
+  `;
+}
+function doInsert(){
+  const v=parseInt(document.getElementById('insert-val').value);
+  const log=document.getElementById('insert-log');
+  const info=document.getElementById('insert-step-info');
+  if(!v||v<1||v>200000){log.innerHTML='<span style="color:var(--red)">Enter a salary between 1 and 200,000.</span>';return;}
+  if(insertLeaf.includes(v)){log.innerHTML=`<span style="color:var(--amber)">${v.toLocaleString()} already exists in index.</span>`;return;}
+  if(insertLeaf.length>=LEAF_MAX){
+    log.innerHTML=`<span style="color:var(--red)">Leaf FULL — page split triggered! Allocating new page, promoting middle key to parent.</span>`;
+    info.innerHTML=`<strong>Page split!</strong> Leaf was full (${LEAF_MAX}/${LEAF_MAX} slots). ${v.toLocaleString()} caused a split. Lower half stays, upper half moves to new page. Middle key promoted to parent. See the Page Split section above.`;
+    insertLeaf.push(v);insertLeaf.sort((a,b)=>a-b);
+    const mid=Math.floor(insertLeaf.length/2);
+    const left=insertLeaf.slice(0,mid);
+    const right=insertLeaf.slice(mid);
+    insertLeaf=left;renderInsertLeaf();
+    document.getElementById('insert-leaf-display').innerHTML+=`<div style="margin-top:10px;font-size:12px;color:var(--text3)">After split:</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+      <div class="page-visual" style="max-width:180px"><div class="phbar">left leaf</div><div class="psec">${left.map(v=>`<div class="rbytes">${v.toLocaleString()}</div>`).join('')}</div></div>
+      <div class="page-visual" style="max-width:180px;border-color:var(--green)"><div class="phbar" style="color:var(--green)">new right leaf</div><div class="psec">${right.map(v=>`<div class="rbytes">${v.toLocaleString()}</div>`).join('')}</div></div>
+    </div>`;
+    return;
+  }
+  insertLeaf.push(v);insertLeaf.sort((a,b)=>a-b);
+  const pos=insertLeaf.indexOf(v)+1;
+  log.innerHTML=`<span style="color:var(--green)">${v.toLocaleString()} inserted at slot ${pos}. Leaf sorted in-place.</span>`;
+  info.innerHTML=`<strong>${v.toLocaleString()} inserted.</strong> Placed at position ${pos} in sorted order. Leaf has ${insertLeaf.length}/${LEAF_MAX} slots used. ${insertLeaf.length>=LEAF_MAX?'<span style="color:var(--red)">Next insert will trigger a split.</span>':'Room for '+(LEAF_MAX-insertLeaf.length)+' more before split.'}`;
+  renderInsertLeaf();
+  setTimeout(()=>{const el=document.getElementById('il-'+(pos-1));if(el){el.style.background='var(--green-bg)';el.style.color='var(--green)';setTimeout(()=>{el.style.background='';el.style.color='';},1200);}},50);
+}
+function resetInsert(){insertLeaf=[42000,67000,80000,95000];document.getElementById('insert-log').innerHTML='';document.getElementById('insert-step-info').innerHTML='Enter a salary and press INSERT.';renderInsertLeaf();}
+renderInsertLeaf();
+
+// ── PAGE SPLIT ──────────────────────────────────────────
+const splitSteps=[
+  {info:'<strong>Normal state.</strong> Right leaf holds 3 keys (55, 70, 85). Room for one more. Parent has key 50, two child pointers.',
+   html:`<div style="margin-bottom:10px"><div class="sn-box" style="max-width:260px"><div class="sn-hd">parent — page 2</div><div class="sn-cells"><div class="sn-cell">ptr</div><div class="sn-cell">50</div><div class="sn-cell">ptr</div></div></div></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="sn-box"><div class="sn-hd">page 4 (left)</div><div class="sn-cells"><div class="sn-cell">20</div><div class="sn-cell">35</div><div class="sn-cell">48</div></div></div>
+      <div class="sn-box"><div class="sn-hd">page 5 (right) — 3/4 full</div><div class="sn-cells"><div class="sn-cell">55</div><div class="sn-cell">70</div><div class="sn-cell">85</div></div></div>
+    </div>`},
+  {info:'<strong>INSERT 75.</strong> Keys: 55, 70, 75, 85. All 4 slots occupied — page completely full. Next insert has nowhere to go. Split triggered.',
+   html:`<div style="margin-bottom:10px"><div class="sn-box" style="max-width:260px"><div class="sn-hd">parent — page 2</div><div class="sn-cells"><div class="sn-cell">ptr</div><div class="sn-cell">50</div><div class="sn-cell">ptr</div></div></div></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="sn-box"><div class="sn-hd">page 4</div><div class="sn-cells"><div class="sn-cell">20</div><div class="sn-cell">35</div><div class="sn-cell">48</div></div></div>
+      <div class="sn-box full"><div class="sn-hd full">page 5 — FULL (4/4)</div><div class="sn-cells"><div class="sn-cell">55</div><div class="sn-cell">70</div><div class="sn-cell new">75</div><div class="sn-cell">85</div></div></div>
+    </div>`},
+  {info:'<strong>Split happens.</strong> New page 6 allocated. Lower half (55, 70) stays in page 5. Upper half (80, 85) moves to page 6. Middle key <strong>75</strong> promoted to parent.',
+   html:`<div style="margin-bottom:6px"><div class="sn-box updated" style="max-width:340px"><div class="sn-hd updated">parent — page 2 (being updated)</div><div class="sn-cells"><div class="sn-cell">ptr</div><div class="sn-cell">50</div><div class="sn-cell">ptr</div><div class="sn-cell mid">75↑</div><div class="sn-cell">ptr</div></div></div></div>
+    <div class="promote-arrow"><div class="pa-h"></div><div class="pa-s"></div></div>
+    <div class="promote-lbl">75 promoted to parent</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="sn-box"><div class="sn-hd">page 4</div><div class="sn-cells"><div class="sn-cell">20</div><div class="sn-cell">35</div><div class="sn-cell">48</div></div></div>
+      <div class="sn-box updated"><div class="sn-hd updated">page 5 — lower half</div><div class="sn-cells"><div class="sn-cell">55</div><div class="sn-cell">70</div></div></div>
+      <div class="sn-box new-page"><div class="sn-hd new-page">page 6 — NEW upper half</div><div class="sn-cells"><div class="sn-cell">80</div><div class="sn-cell">85</div></div></div>
+    </div>`},
+  {info:'<strong>Split complete.</strong> Parent: 2 keys (50, 75), 3 child pointers. All leaves half-full. Cost: 3 page writes (page 5 modified, page 6 new, parent updated) + WAL entries.',
+   html:`<div style="margin-bottom:10px"><div class="sn-box new-page" style="max-width:340px"><div class="sn-hd new-page">parent — page 2 updated</div><div class="sn-cells"><div class="sn-cell">ptr</div><div class="sn-cell">50</div><div class="sn-cell">ptr</div><div class="sn-cell promoted">75</div><div class="sn-cell">ptr</div></div></div></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="sn-box"><div class="sn-hd">page 4</div><div class="sn-cells"><div class="sn-cell">20</div><div class="sn-cell">35</div><div class="sn-cell">48</div></div></div>
+      <div class="sn-box updated"><div class="sn-hd updated">page 5 — half full</div><div class="sn-cells"><div class="sn-cell">55</div><div class="sn-cell">70</div></div></div>
+      <div class="sn-box new-page"><div class="sn-hd new-page">page 6 — new</div><div class="sn-cells"><div class="sn-cell">80</div><div class="sn-cell">85</div></div></div>
+    </div>`},
+  {info:'<strong>Cascade split.</strong> If parent had no room for key 75, it also splits — and its middle key propagates up. If root splits, a brand new root is created and the tree grows one level taller.',
+   html:`<div style="margin-bottom:6px"><div class="sn-box full" style="max-width:300px"><div class="sn-hd full">grandparent (root) — also full</div><div class="sn-cells"><div class="sn-cell">25</div><div class="sn-cell mid">50↑</div><div class="sn-cell">75</div></div></div></div>
+    <div class="promote-arrow"><div class="pa-h"></div><div class="pa-s"></div></div>
+    <div class="promote-lbl">50 promoted — root splits → tree grows taller</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+      <div class="sn-box new-page"><div class="sn-hd new-page">new left parent</div><div class="sn-cells"><div class="sn-cell">ptr</div><div class="sn-cell">25</div><div class="sn-cell">ptr</div></div></div>
+      <div class="sn-box updated"><div class="sn-hd updated">new right parent</div><div class="sn-cells"><div class="sn-cell">ptr</div><div class="sn-cell">75</div><div class="sn-cell">ptr</div></div></div>
+    </div>`},
+];
+let splitStep=0;
+function splitRender(){
+  document.getElementById('split-scene').innerHTML=splitSteps[splitStep].html;
+  document.getElementById('split-info').innerHTML=splitSteps[splitStep].info;
+  document.getElementById('split-label').textContent=`${splitStep+1} / ${splitSteps.length}`;
+  document.getElementById('sp-prev').disabled=splitStep===0;
+  document.getElementById('sp-next').disabled=splitStep===splitSteps.length-1;
+  document.getElementById('sp-next').textContent=splitStep===splitSteps.length-1?'Done':'Next →';
+  const dots=document.getElementById('split-dots');dots.innerHTML='';
+  splitSteps.forEach((_,i)=>{const d=document.createElement('div');d.className='sdot'+(i===splitStep?' on':i<splitStep?' done':'');dots.appendChild(d);});
+}
+function splitGo(dir){splitStep=Math.max(0,Math.min(splitSteps.length-1,splitStep+dir));splitRender();}
+splitRender();
+
+// ── BUFFER POOL ──────────────────────────────────────────
+let bpSlots=Array(8).fill(null).map((_,i)=>({type:'',name:'empty',state:'empty'}));
+bpSlots[0]={type:'index',name:'idx root pg1',state:''};
+function bpRender(){
+  const grid=document.getElementById('bp-grid');grid.innerHTML='';
+  bpSlots.forEach(s=>{
+    const d=document.createElement('div');
+    d.className='bp-slot'+(s.state==='empty'?' empty':s.state==='hot'?' hot':s.state==='hit'?' hit':'');
+    d.innerHTML=`<div class="bp-type">${s.state==='empty'?'—':s.type}</div><div class="bp-name">${s.name}</div>`;
+    grid.appendChild(d);
+  });
+}
+function bpQuery(q){
+  ['bpbtn1','bpbtn2','bpbtn3'].forEach(id=>document.getElementById(id)?.classList.remove('active-btn'));
+  document.getElementById('bpbtn'+q)?.classList.add('active-btn');
+  if(q===1){
+    bpSlots[0]={type:'index',name:'idx root pg1',state:'hot'};
+    bpSlots[1]={type:'index',name:'idx internal pg3',state:'hot'};
+    bpSlots[2]={type:'index',name:'idx leaf pg6',state:'hot'};
+    bpSlots[3]={type:'heap',name:'heap pg4',state:'hot'};
+    document.getElementById('bp-info').innerHTML='<strong>Query 1: salary=80,000</strong> — Cold cache. 4 disk reads: 3 index pages + 1 heap page. All 4 now cached in buffer pool.';
+  } else if(q===2){
+    bpSlots[0]={type:'index',name:'idx root pg1',state:'hit'};
+    bpSlots[4]={type:'index',name:'idx internal pg2',state:'hot'};
+    bpSlots[5]={type:'index',name:'idx leaf pg4',state:'hot'};
+    bpSlots[6]={type:'heap',name:'heap pg1',state:'hot'};
+    document.getElementById('bp-info').innerHTML='<strong>Query 2: salary=42,000</strong> — Root page = <span style="color:var(--green)">CACHE HIT</span> (green). 3 disk reads only. Internal pg2, leaf pg4, heap pg1 newly loaded.';
+  } else if(q===3){
+    bpSlots[0]={type:'index',name:'idx root pg1',state:'hit'};
+    bpSlots[1]={type:'index',name:'idx internal pg3',state:'hit'};
+    bpSlots[2]={type:'index',name:'idx leaf pg6',state:'hit'};
+    bpSlots[3]={type:'heap',name:'heap pg4',state:'hit'};
+    document.getElementById('bp-info').innerHTML='<strong>Query 3: salary=80,000 again</strong> — All 4 pages = <span style="color:var(--green)">CACHE HITS</span>. Zero disk reads. Pure RAM operation. This is why repeated queries are fast.';
+  }
+  bpRender();
+}
+function bpReset(){
+  bpSlots=Array(8).fill(null).map(()=>({type:'',name:'empty',state:'empty'}));
+  bpSlots[0]={type:'index',name:'idx root pg1',state:''};
+  ['bpbtn1','bpbtn2','bpbtn3'].forEach(id=>document.getElementById(id)?.classList.remove('active-btn'));
+  document.getElementById('bp-info').innerHTML='Buffer pool is cold — all pages on disk.';
+  bpRender();
+}
+bpRender();
+
+// ── SELECTIVITY SLIDER ───────────────────────────────────
+function updateSelSlider(v){
+  v=parseInt(v);
+  const rows=Math.round(v*10000);
+  document.getElementById('sel-pct-label').textContent=v+'%';
+  document.getElementById('sel-bar').style.width=v+'%';
+  document.getElementById('sel-bar').style.background=v>10?'var(--red)':v>5?'var(--amber)':'var(--green)';
+  document.getElementById('sel-row-count').textContent=rows.toLocaleString()+' rows';
+  const dec=document.getElementById('sel-decision');
+  const reason=document.getElementById('sel-reason');
+  if(v<=10){
+    dec.style.background='var(--green-bg)';dec.style.borderColor='var(--green)';dec.style.color='var(--green)';
+    dec.textContent='Index scan ✓';
+    reason.textContent=`${rows.toLocaleString()} rows × random I/O < cost of reading all pages sequentially. Index wins.`;
+  } else if(v<=30){
+    dec.style.background='var(--amber-bg)';dec.style.borderColor='var(--amber)';dec.style.color='var(--amber)';
+    dec.textContent='Index maybe used';
+    reason.textContent=`${rows.toLocaleString()} rows — borderline. Depends on table size, correlation, and cost parameters. Planner may go either way.`;
+  } else {
+    dec.style.background='var(--red-bg)';dec.style.borderColor='var(--red)';dec.style.color='var(--red)';
+    dec.textContent='Seq scan chosen ✗';
+    reason.textContent=`${rows.toLocaleString()} rows — too many random heap fetches. Sequential scan reads same pages in order cheaper. Index skipped.`;
+  }
+}
+
+// ── SELECTIVITY CARDS ────────────────────────────────────
+const selData=[
+  {col:'gender',distinct:3,sel:50,color:'#ef4444',verdict:'index ignored',vclass:'badge-red'},
+  {col:'country',distinct:195,sel:17,color:'#f59e0b',verdict:'maybe used',vclass:'badge-amber'},
+  {col:'department',distinct:12,sel:8,color:'#14b8a6',verdict:'index used',vclass:'badge-teal'},
+  {col:'email',distinct:'= rows',sel:0.0001,color:'#6366f1',verdict:'always used',vclass:'badge-accent'},
+];
+const sc=document.getElementById('sel-cards');
+selData.forEach(d=>{
+  const div=document.createElement('div');div.className='crd-card';
+  div.innerHTML=`<div class="crd-col">${d.col}</div><div class="crd-val">cardinality: ${d.distinct}</div><div class="crd-bt"><div class="crd-bf" style="width:${Math.min(d.sel,100)}%;background:${d.color}"></div></div><div class="crd-sel" style="color:${d.color}">${d.sel}% rows</div><div class="crd-verdict ${d.vclass}">${d.verdict}</div>`;
+  sc.appendChild(div);
+});
+
+// ── COMPOSITE QUERIES ────────────────────────────────────
+const compQueries=[
+  {label:'dept = \'Eng\'',
+   sql:"SELECT * FROM employees WHERE department = 'Eng'",
+   used:true,
+   reason:'Leading column (department) used. Index navigates directly to all dept=Eng entries. Only Eng rows scanned.',
+   scan:'~3 index pages + N heap pages for Eng employees'},
+  {label:'dept = \'Eng\' AND salary = 80000',
+   sql:"SELECT * FROM employees WHERE department = 'Eng' AND salary = 80000",
+   used:true,
+   reason:'Both columns used. Index navigates to exact (Eng, 80000) tuple. Single leaf entry match.',
+   scan:'3 index pages + 1 heap page'},
+  {label:'dept = \'Eng\' AND salary > 60000',
+   sql:"SELECT * FROM employees WHERE department = 'Eng' AND salary > 60000",
+   used:true,
+   reason:'Leading col equality + range on second col. Index navigates to Eng block, then range-scans salary > 60000 within it.',
+   scan:'3–4 index pages + heap pages for matched rows'},
+  {label:'salary = 80000 only',
+   sql:'SELECT * FROM employees WHERE salary = 80000',
+   used:false,
+   reason:'salary is the SECOND column. Without department (col 1), entries are scattered across the entire index — no anchor point for traversal. Index skipped.',
+   scan:'Full seq scan or needs separate idx ON (salary)'},
+  {label:'salary > 60000 only',
+   sql:'SELECT * FROM employees WHERE salary > 60000',
+   used:false,
+   reason:'Same problem. No leading column constraint. Index cannot narrow down efficiently. Planner chooses seq scan.',
+   scan:'Full seq scan'},
+  {label:'ORDER BY dept, salary',
+   sql:'SELECT * FROM employees ORDER BY department, salary',
+   used:true,
+   reason:'Index is already sorted by (department, salary). Postgres can scan leaves in order — no sort step needed. Index scan + no sort = very fast.',
+   scan:'All index leaf pages in order — no sort overhead'},
+];
+const btnRow=document.getElementById('comp-query-btns');
+compQueries.forEach((q,i)=>{
+  const btn=document.createElement('button');
+  btn.textContent=q.label;
+  btn.onclick=()=>showCompQuery(i,btn);
+  btnRow.appendChild(btn);
+});
+function showCompQuery(i,btn){
+  document.querySelectorAll('#comp-query-btns button').forEach(b=>b.classList.remove('active-btn'));
+  btn.classList.add('active-btn');
+  const q=compQueries[i];
+  const area=document.getElementById('comp-result-area');
+  const color=q.used?'var(--green)':'var(--red)';
+  const bg=q.used?'var(--green-bg)':'var(--red-bg)';
+  const border=q.used?'var(--green)':'var(--red)';
+  area.innerHTML=`
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:8px">
+      <pre style="margin:0 0 10px;font-size:12px">${q.sql}</pre>
+      <div style="background:${bg};border:1px solid ${border};border-radius:6px;padding:10px 14px;margin-bottom:10px">
+        <div style="font-size:13px;color:${color};font-weight:600;margin-bottom:4px">${q.used?'✓ Index used':'✗ Index skipped'}</div>
+        <div style="font-size:12px;color:var(--text2)">${q.reason}</div>
+      </div>
+      <div style="font-size:11px;font-family:var(--mono);color:var(--text3)">Cost estimate: ${q.scan}</div>
+    </div>`;
+}
+</script>
+</body>
+</html>
