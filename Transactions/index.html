@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Database Transaction Visual Simulator</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ============================= HEADER ============================= -->
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">◧◨</span>
+    <div class="brand-text">
+      <h1>Transaction Lab</h1>
+      <span class="brand-sub">an interactive database internals simulator</span>
+    </div>
+  </div>
+
+  <div class="global-controls">
+    <div class="mode-toggle" role="group" aria-label="Learning mode">
+      <button class="seg-btn active" data-mode="generic" id="modeGeneric">Generic DB</button>
+      <button class="seg-btn" data-mode="postgres" id="modePostgres">PostgreSQL</button>
+    </div>
+
+    <label class="iso-select">
+      Isolation
+      <select id="isolationLevel">
+        <option value="read-uncommitted">Read Uncommitted</option>
+        <option value="read-committed" selected>Read Committed</option>
+        <option value="repeatable-read">Repeatable Read</option>
+        <option value="serializable">Serializable</option>
+      </select>
+    </label>
+
+    <div class="playback">
+      <button id="btnPlay" title="Play the current section's animated sequence" class="icon-btn">Play ▶</button>
+      <button id="btnPause" title="Pause" class="icon-btn" disabled>Pause ❚❚</button>
+      <button id="btnStep" title="Step forward" class="icon-btn">Step ▶</button>
+      <label class="iso-select" title="Animation speed">
+        Speed
+        <select id="speedSelect">
+          <option value="1400">Slow</option>
+          <option value="800" selected>Normal</option>
+          <option value="350">Fast</option>
+        </select>
+      </label>
+      <button id="btnReset" title="Reset simulation" class="icon-btn danger">Reset</button>
+      <button id="btnClearLog" title="Clear event log" class="icon-btn">Clear Log</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============================= APP BODY ============================= -->
+<div class="app-shell">
+
+  <!-- ---------------- SIDEBAR NAV ---------------- -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-title">Learning Flow</div>
+    <ol class="nav-list" id="navList">
+      <li data-section="basics">Transaction Basics</li>
+      <li data-section="acid">ACID</li>
+      <li data-section="concurrency">Concurrency</li>
+      <li data-section="isolation">Isolation Levels</li>
+      <li data-section="problems">Concurrency Problems</li>
+      <li data-section="locks">Locks</li>
+      <li data-section="deadlocks">Deadlocks</li>
+      <li data-section="optimistic">Optimistic Locking</li>
+      <li data-section="pessimistic">Pessimistic Locking</li>
+      <li data-section="mvcc">MVCC</li>
+      <li data-section="dirtypages">Dirty Pages</li>
+      <li data-section="sharedbuffers">Shared Buffers</li>
+      <li data-section="wal">WAL</li>
+      <li data-section="walcommit">WAL + Commit</li>
+      <li data-section="checkpoint">Checkpoint</li>
+      <li data-section="recovery">Crash Recovery</li>
+      <li data-section="vacuum">VACUUM</li>
+      <li data-section="fullflow">Complete Flow</li>
+      <li data-section="interview">Interview Questions</li>
+    </ol>
+    <div class="sidebar-footer">
+      <div class="crash-btn-wrap">
+        <button id="btnCrash" class="crash-btn">💥 CRASH DATABASE</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ---------------- MAIN + EXPLANATION ---------------- -->
+  <main class="main-area">
+
+    <div class="workspace">
+
+      <!-- MAIN VISUALIZATION COLUMN -->
+      <section class="viz-column">
+        <div id="sectionHost"><!-- section templates injected here --></div>
+      </section>
+
+      <!-- EXPLANATION PANEL -->
+      <aside class="explain-panel">
+        <h2>Explanation</h2>
+        <div class="explain-block">
+          <h3>What happened?</h3>
+          <p id="expWhat">Perform an action to see what happened here.</p>
+        </div>
+        <div class="explain-block">
+          <h3>Why?</h3>
+          <p id="expWhy">Technical reasoning for the last event appears here.</p>
+        </div>
+        <div class="explain-block interview-point">
+          <h3>Interview point</h3>
+          <p id="expInterview">A concise, interview-ready statement appears here.</p>
+        </div>
+        <div class="explain-block" id="simplifiedNoteWrap" hidden>
+          <span class="badge badge-simplified">Simplified educational visualization</span>
+          <p id="simplifiedNote"></p>
+        </div>
+      </aside>
+
+    </div>
+
+    <!-- ---------------- BOTTOM DOCK: state + log + timeline ---------------- -->
+    <section class="bottom-dock">
+      <div class="dock-tabs" id="dockTabs">
+        <button class="dock-tab active" data-tab="log">Event Log</button>
+        <button class="dock-tab" data-tab="dbstate">Database State</button>
+        <button class="dock-tab" data-tab="txstate">Transaction State</button>
+        <button class="dock-tab" data-tab="memstate">Memory State</button>
+        <button class="dock-tab" data-tab="diskstate">Disk State</button>
+        <button class="dock-tab" data-tab="timeline">Timeline</button>
+      </div>
+
+      <div class="dock-panels">
+
+        <div class="dock-panel active" data-panel="log">
+          <div class="log-filters" id="logFilters">
+            <button class="filter-chip active" data-filter="all">All</button>
+            <button class="filter-chip" data-filter="Transactions">Transactions</button>
+            <button class="filter-chip" data-filter="Locks">Locks</button>
+            <button class="filter-chip" data-filter="MVCC">MVCC</button>
+            <button class="filter-chip" data-filter="WAL">WAL</button>
+            <button class="filter-chip" data-filter="Pages">Pages</button>
+            <button class="filter-chip" data-filter="VACUUM">VACUUM</button>
+            <button class="filter-chip" data-filter="Recovery">Recovery</button>
+          </div>
+          <div class="log-list" id="eventLog"></div>
+        </div>
+
+        <div class="dock-panel" data-panel="dbstate">
+          <table class="state-table" id="dbStateTable">
+            <thead><tr><th>Account</th><th>Committed Value</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="dock-panel" data-panel="txstate">
+          <div class="tx-cards" id="txStateCards"></div>
+        </div>
+
+        <div class="dock-panel" data-panel="memstate">
+          <div class="mem-grid" id="memStateGrid"></div>
+        </div>
+
+        <div class="dock-panel" data-panel="diskstate">
+          <div class="disk-grid" id="diskStateGrid"></div>
+        </div>
+
+        <div class="dock-panel" data-panel="timeline">
+          <div class="timeline-track" id="timelineTrack"></div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ============================= SECTION TEMPLATES ============================= -->
+<!-- Each <template> holds the markup for one learning section; script.js swaps them into #sectionHost -->
+
+<template id="tpl-basics">
+  <div class="section-header">
+    <h2>01 · Transaction Basics</h2>
+    <p class="section-desc">BEGIN, COMMIT, ROLLBACK, and SAVEPOINT — run each and watch the account balances move between working and committed state.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <span class="control-label">Basic transaction</span>
+      <button data-basics="begin">BEGIN</button>
+      <button data-basics="debit">A -= 200</button>
+      <button data-basics="credit">B += 200</button>
+      <button data-basics="commit">COMMIT</button>
+      <button data-basics="rollback" class="btn-danger">ROLLBACK</button>
+    </div>
+    <div class="control-group">
+      <span class="control-label">Savepoints</span>
+      <button data-basics="sp-debit100">A -= 100</button>
+      <button data-basics="sp-mark">SAVEPOINT s1</button>
+      <button data-basics="sp-debit200">A -= 200</button>
+      <button data-basics="sp-rollback">ROLLBACK TO s1</button>
+    </div>
+  </div>
+
+  <div class="viz-stage" id="basicsStage">
+    <div class="balance-row">
+      <div class="balance-card" id="basicsBeforeA">
+        <span class="balance-label">A (committed)</span>
+        <span class="balance-value">₹1000</span>
+      </div>
+      <div class="balance-card" id="basicsBeforeB">
+        <span class="balance-label">B (committed)</span>
+        <span class="balance-value">₹1000</span>
+      </div>
+    </div>
+    <div class="flow-arrow">↓ transaction state ↓</div>
+    <div class="balance-row">
+      <div class="balance-card working" id="basicsWorkA">
+        <span class="balance-label">A (working)</span>
+        <span class="balance-value">₹1000</span>
+      </div>
+      <div class="balance-card working" id="basicsWorkB">
+        <span class="balance-label">B (working)</span>
+        <span class="balance-value">₹1000</span>
+      </div>
+    </div>
+    <div class="savepoint-track" id="savepointTrack"></div>
+  </div>
+</template>
+
+<template id="tpl-acid">
+  <div class="section-header">
+    <h2>02 · ACID</h2>
+    <p class="section-desc">Four properties, four small experiments. Each card runs independently of the shared account balances.</p>
+  </div>
+
+  <div class="acid-grid">
+    <div class="acid-card">
+      <h3>Atomicity</h3>
+      <p>A transaction with two writes. Force the second one to fail and watch the whole transaction unwind.</p>
+      <div class="mini-viz" id="acidAtomicViz"></div>
+      <div class="control-group">
+        <button data-acid="atomic-run">Run: A -= 200, B += 200 (fails)</button>
+        <button data-acid="atomic-reset">Reset</button>
+      </div>
+    </div>
+
+    <div class="acid-card">
+      <h3>Consistency</h3>
+      <p>The invariant <code>A + B = 2000</code> must hold before and after every committed transaction.</p>
+      <div class="mini-viz" id="acidConsistencyViz"></div>
+      <div class="control-group">
+        <button data-acid="consistency-valid">Run valid transfer</button>
+        <button data-acid="consistency-invalid" class="btn-danger">Run invariant-breaking write</button>
+      </div>
+    </div>
+
+    <div class="acid-card">
+      <h3>Isolation</h3>
+      <p>Two concurrent transactions touch the same row. What each one sees depends on the isolation level chosen above.</p>
+      <div class="mini-viz" id="acidIsolationViz"></div>
+      <div class="control-group">
+        <button data-acid="isolation-demo">Run concurrent demo</button>
+      </div>
+    </div>
+
+    <div class="acid-card">
+      <h3>Durability</h3>
+      <p>Once committed, a change must survive a crash — because it was made durable via WAL, not because it sits in RAM.</p>
+      <div class="mini-viz" id="acidDurabilityViz"></div>
+      <div class="control-group">
+        <button data-acid="durability-demo">COMMIT → Crash → Recover</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-concurrency">
+  <div class="section-header">
+    <h2>03 · Concurrent Transactions</h2>
+    <p class="section-desc">Drive two independent transactions, T1 and T2, against the same balance and watch their timelines interleave.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <span class="control-label">T1</span>
+      <button data-conc="T1-begin">BEGIN</button>
+      <button data-conc="T1-read">READ balance</button>
+      <button data-conc="T1-update">UPDATE balance</button>
+      <button data-conc="T1-commit">COMMIT</button>
+      <button data-conc="T1-rollback" class="btn-danger">ROLLBACK</button>
+    </div>
+    <div class="control-group">
+      <span class="control-label">T2</span>
+      <button data-conc="T2-begin">BEGIN</button>
+      <button data-conc="T2-read">READ balance</button>
+      <button data-conc="T2-update">UPDATE balance</button>
+      <button data-conc="T2-commit">COMMIT</button>
+      <button data-conc="T2-rollback" class="btn-danger">ROLLBACK</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <div class="tx-lane-grid" id="concLanes"></div>
+    <div class="concurrency-timeline" id="concTimeline"></div>
+  </div>
+</template>
+
+<template id="tpl-isolation">
+  <div class="section-header">
+    <h2>04 · Isolation Levels</h2>
+    <p class="section-desc">Choose an isolation level above, then choose Generic or PostgreSQL mode, to see which anomalies are actually possible.</p>
+  </div>
+
+  <div class="viz-stage">
+    <table class="iso-matrix" id="isoMatrix">
+      <thead>
+        <tr><th>Isolation level</th><th>Dirty read</th><th>Non-repeatable read</th><th>Phantom read</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <p class="pg-note" id="isoPgNote"></p>
+  </div>
+</template>
+
+<template id="tpl-problems">
+  <div class="section-header">
+    <h2>05 · Concurrency Problems</h2>
+    <p class="section-desc">Run each classic anomaly against the currently selected isolation level and mode, and see whether it actually happens.</p>
+  </div>
+
+  <div class="acid-grid">
+    <div class="acid-card">
+      <h3>Dirty Read</h3>
+      <p>T1 writes X = 500 (uncommitted). T2 reads X. T1 rolls back.</p>
+      <div class="mini-viz" id="dirtyReadViz"></div>
+      <button data-prob="dirty-read">Run scenario</button>
+    </div>
+    <div class="acid-card">
+      <h3>Non-Repeatable Read</h3>
+      <p>T1 reads X twice; T2 updates and commits X in between.</p>
+      <div class="mini-viz" id="nonRepeatableViz"></div>
+      <button data-prob="non-repeatable">Run scenario</button>
+    </div>
+    <div class="acid-card">
+      <h3>Phantom Read</h3>
+      <p>T1 runs <code>WHERE salary &gt; 50000</code> twice; T2 inserts a matching row in between.</p>
+      <div class="mini-viz" id="phantomViz"></div>
+      <button data-prob="phantom">Run scenario</button>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-locks">
+  <div class="section-header">
+    <h2>06 · Locking</h2>
+    <p class="section-desc">T1 locks a row and updates it. T2 tries to touch the same row and must wait until the lock is released.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <span class="control-label">Shared / Exclusive demo</span>
+      <button data-lock="t1-read-shared">T1: READ (Shared)</button>
+      <button data-lock="t2-read-shared">T2: READ (Shared)</button>
+      <button data-lock="t1-write-exclusive">T1: UPDATE (Exclusive)</button>
+      <button data-lock="t2-write-exclusive">T2: UPDATE (Exclusive)</button>
+      <button data-lock="t1-commit">T1: COMMIT (release locks)</button>
+      <button data-lock="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <div class="lock-row-card" id="lockRowViz"></div>
+  </div>
+</template>
+
+<template id="tpl-deadlocks">
+  <div class="section-header">
+    <h2>07 · Deadlocks</h2>
+    <p class="section-desc">T1 locks Row A, T2 locks Row B. Then each requests the other's row.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <button data-dead="run">Run Deadlock</button>
+      <button data-dead="resolve" class="btn-danger">Resolve Deadlock</button>
+      <button data-dead="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <div class="deadlock-graph" id="deadlockGraph"></div>
+    <p class="pg-note">Lock wait vs. deadlock: a normal lock wait resolves on its own once the lock holder commits. A deadlock is a <em>circular</em> wait that cannot resolve by itself — the database must detect it and abort one participant.</p>
+  </div>
+</template>
+
+<template id="tpl-optimistic">
+  <div class="section-header">
+    <h2>08 · Optimistic Locking</h2>
+    <p class="section-desc">A version column detects conflicts at write time instead of blocking readers up front.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <button data-opt="t1-read">T1: read row</button>
+      <button data-opt="t2-read">T2: read row</button>
+      <button data-opt="t1-update">T1: UPDATE ... WHERE version = ?</button>
+      <button data-opt="t2-update">T2: UPDATE ... WHERE version = ?</button>
+      <button data-opt="t2-retry">T2: Retry (refresh version)</button>
+      <button data-opt="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <div class="optimistic-viz" id="optimisticViz"></div>
+  </div>
+</template>
+
+<template id="tpl-pessimistic">
+  <div class="section-header">
+    <h2>09 · Pessimistic Locking</h2>
+    <p class="section-desc"><code>SELECT ... FOR UPDATE</code> acquires the lock immediately, before the critical update, assuming conflicts are likely.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <button data-pess="t1-for-update">T1: SELECT ... FOR UPDATE</button>
+      <button data-pess="t2-for-update">T2: SELECT ... FOR UPDATE</button>
+      <button data-pess="t1-update">T1: UPDATE</button>
+      <button data-pess="t1-commit">T1: COMMIT</button>
+      <button data-pess="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <div class="pessimistic-viz" id="pessimisticViz"></div>
+  </div>
+
+  <div class="compare-strip">
+    <div><strong>Optimistic</strong> — assumes conflicts are rare, no upfront lock, detects conflict at write time, usually via a version check.</div>
+    <div><strong>Pessimistic</strong> — assumes conflicts are likely, acquires a lock upfront, other transactions wait.</div>
+  </div>
+</template>
+
+<template id="tpl-mvcc">
+  <div class="section-header">
+    <h2>10 · MVCC — Multi-Version Concurrency Control</h2>
+    <p class="section-desc">An UPDATE conceptually creates a new row version rather than always overwriting in place. Different transactions can see different versions depending on their snapshot.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <button data-mvcc="t1-begin">T1: BEGIN (take snapshot)</button>
+      <button data-mvcc="t2-update">T2: UPDATE value = 200, COMMIT</button>
+      <button data-mvcc="t1-read">T1: READ</button>
+      <button data-mvcc="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <div class="mvcc-versions" id="mvccVersions"></div>
+    <p class="pg-note">PostgreSQL does not overwrite the old tuple for every UPDATE — it conceptually adds a new tuple version and leaves the old one in place until it is no longer needed by any transaction and is later reclaimed by VACUUM.</p>
+  </div>
+</template>
+
+<template id="tpl-dirtypages">
+  <div class="section-header">
+    <h2>11 · Dirty Pages</h2>
+    <p class="section-desc">A dirty page is a page in memory whose contents differ from the durable copy on disk — not a "corrupted" page.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <button data-dp="update">UPDATE balance = 900</button>
+      <button data-dp="flush">Flush dirty page to disk</button>
+      <button data-dp="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <div class="page-flow" id="dirtyPageViz"></div>
+  </div>
+</template>
+
+<template id="tpl-sharedbuffers">
+  <div class="section-header">
+    <h2>12 · Shared Buffers</h2>
+    <p class="section-desc">Application → PostgreSQL → Shared Buffers (RAM) → Disk. Watch cache hits and misses.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <button data-sb="query-cached">Query cached page</button>
+      <button data-sb="query-uncached">Query uncached page</button>
+      <button data-sb="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <div class="buffer-flow" id="bufferFlowViz"></div>
+    <div class="hit-counters">
+      <span>Hits: <strong id="bufHits">0</strong></span>
+      <span>Misses: <strong id="bufMisses">0</strong></span>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-wal">
+  <div class="section-header">
+    <h2>13 · Write-Ahead Log (WAL)</h2>
+    <p class="section-desc">WAL stores the information needed to redo changes during crash recovery — it is not a full duplicate of every page.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <button data-wal="generate">Generate WAL record</button>
+      <button data-wal="flush">Flush WAL to durable storage</button>
+      <button data-wal="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <div class="wal-flow" id="walFlowViz"></div>
+  </div>
+</template>
+
+<template id="tpl-walcommit">
+  <div class="section-header">
+    <h2>14 · UPDATE + Dirty Page + WAL + COMMIT</h2>
+    <p class="section-desc">The detailed conceptual sequence behind a single UPDATE, ending in an acknowledged, durable COMMIT.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <button data-wc="run-step">Next step ▶</button>
+      <button data-wc="run-all">Run all steps</button>
+      <button data-wc="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <ol class="wc-steps" id="wcSteps"></ol>
+    <div class="wc-status" id="wcStatus"></div>
+  </div>
+</template>
+
+<template id="tpl-checkpoint">
+  <div class="section-header">
+    <h2>15 · Checkpoint</h2>
+    <p class="section-desc">A checkpoint flushes dirty pages toward durable storage and establishes a recovery point, shortening the WAL that recovery must replay.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <button data-ckpt="dirty">Make some pages dirty</button>
+      <button data-ckpt="run">Run CHECKPOINT</button>
+      <button data-ckpt="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <div class="checkpoint-viz" id="checkpointViz"></div>
+  </div>
+</template>
+
+<template id="tpl-recovery">
+  <div class="section-header">
+    <h2>16 · Crash & Recovery</h2>
+    <p class="section-desc">Use the header 💥 CRASH DATABASE button (or the one below) to lose RAM state, then replay WAL to recover.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <button data-rec="commit-durable">COMMIT a durable change</button>
+      <button data-rec="commit-not-durable">Start a change, don't flush WAL</button>
+      <button data-rec="crash" class="btn-danger">💥 Crash</button>
+      <button data-rec="recover">Run recovery</button>
+      <button data-rec="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <div class="recovery-viz" id="recoveryViz"></div>
+  </div>
+</template>
+
+<template id="tpl-vacuum">
+  <div class="section-header">
+    <h2>17 · VACUUM</h2>
+    <p class="section-desc">MVCC leaves dead tuple versions behind after UPDATE/DELETE. VACUUM identifies them and makes their space reusable.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <button data-vac="update">UPDATE a row (creates dead tuple)</button>
+      <button data-vac="delete">DELETE a row (creates dead tuple)</button>
+      <button data-vac="run">Run VACUUM</button>
+      <button data-vac="full">Run VACUUM FULL</button>
+      <button data-vac="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <div class="heap-page" id="heapPageViz"></div>
+    <p class="pg-note">Ordinary <code>VACUUM</code> marks space reusable for future inserts/updates on the same table, but by default it does not shrink the physical file. <code>VACUUM FULL</code> rewrites the table into a new, compact file — but takes a strong lock while doing it.</p>
+  </div>
+</template>
+
+<template id="tpl-fullflow">
+  <div class="section-header">
+    <h2>18 · Complete PostgreSQL Transaction Flow</h2>
+    <p class="section-desc">One end-to-end timeline from BEGIN to VACUUM. Click any step to jump to it.</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-group">
+      <button data-flow="run">▶ RUN COMPLETE TRANSACTION</button>
+      <button data-flow="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="viz-stage">
+    <ol class="full-flow-timeline" id="fullFlowTimeline"></ol>
+  </div>
+</template>
+
+<template id="tpl-interview">
+  <div class="section-header">
+    <h2>19 · Interview Mode</h2>
+    <p class="section-desc">Answer in your own words, then reveal grading and the reference explanation.</p>
+  </div>
+
+  <div class="interview-box">
+    <div class="interview-progress" id="interviewProgress"></div>
+    <h3 id="interviewQuestion"></h3>
+    <textarea id="interviewAnswer" rows="4" placeholder="Type your answer here..."></textarea>
+    <div class="control-group">
+      <button data-iv="check">Check answer</button>
+      <button data-iv="skip">Skip</button>
+      <button data-iv="next">Next question ▶</button>
+    </div>
+    <div class="interview-result" id="interviewResult"></div>
+  </div>
+</template>
+
+<script src="script.js"></script>
+</body>
+</html>
